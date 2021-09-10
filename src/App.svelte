@@ -1,5 +1,18 @@
 <script>
-	let name = 'world';
+	import Router from 'svelte-spa-router'
+
+	import Header from './Header.svelte';
+	import Home from "./Home.svelte";
+	import Distribution from "./Distribution.svelte";
+
+	const routes = {
+		'/': Home,
+		'/distribution': Distribution,
+	}
+
 </script>
 
-<h1>Hello {name}!</h1>
+<body>
+	<Header />
+	<Router {routes}/>
+</body>
