@@ -11,13 +11,14 @@
         Row,
     } from "sveltestrap";
     import Chart from "chart.js/auto";
+    import MultiSelect from "./MultiSelect.svelte";
 
     const endpoint = "https://co2api.endpoint.ml/api/v1";
 
     let regions = [];
     let dataTypes = [];
 
-    let region = "";
+    let region = [];
     let year = "";
     let dataType = "";
 
@@ -27,15 +28,8 @@
     onMount(() => {
         let ctx = document.getElementById("chart");
         chart = new Chart(ctx, {
-            type: "bar",
+            type: "pie",
             data: {},
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                    },
-                },
-            },
         });
     });
 
@@ -69,7 +63,6 @@
 
     function clearForm() {
         console.log("Clearing form!");
-        region = "";
         year = "";
         dataType = "";
     }
@@ -79,25 +72,59 @@
         console.log(region);
         console.log(year);
         console.log(dataType);
+        console.log(regions);
+        console.log(dataTypes);
 
         if (region == "" || year == "" || dataType == "") {
             alert("Invalid data!");
             return;
         }
 
-        const json = await fetchObject(
-            `/distribution/summary?year=${year}&region=${region}&dataType=${dataType}`
-        );
+        let res = {};
+        for (let id of region) {
+            const json = await fetchObject(
+                `/distribution/summary?year=${year}&region=${parseInt(
+                    id
+                )}&dataType=${dataType}`
+            );
 
-        let res = json.results;
+            console.log(json.results);
+
+            if (Object.keys(res).length > 4) {
+                id = 0;
+            }
+            json.results.forEach((el, i) => {
+                console.log(el.value);
+                if (id in res) {
+                    res[id] += el.value;
+                } else {
+                    res[id] = el.value;
+                }
+            });
+        }
 
         console.log(res);
 
-        chart.data.labels = res.map((a) => a.dateStart);
+        chart.data.labels = [];
+        Object.keys(res).forEach((a) => {
+            for (let i of regions) {
+                a = parseInt(a);
+                if (a == 0) {
+                    if (!chart.data.labels.includes("Other")) {
+                        chart.data.labels.push("Other");
+                    }
+                }
+                if (i.id == a) {
+                    chart.data.labels.push(i.name);
+                }
+            }
+        });
+        console.log(chart.data.labels);
+
         chart.data.datasets = [
             {
                 label: dataTypes.filter((a) => a.id == dataType)[0].name,
-                data: res.map((a) => a.value),
+                data: Object.values(res),
                 backgroundColor: [
                     "rgba(255, 99, 132, 0.2)",
                     "rgba(54, 162, 235, 0.2)",
@@ -106,15 +133,7 @@
                     "rgba(153, 102, 255, 0.2)",
                     "rgba(255, 159, 64, 0.2)",
                 ],
-                borderColor: [
-                    "rgba(255, 99, 132, 1)",
-                    "rgba(54, 162, 235, 1)",
-                    "rgba(255, 206, 86, 1)",
-                    "rgba(75, 192, 192, 1)",
-                    "rgba(153, 102, 255, 1)",
-                    "rgba(255, 159, 64, 1)",
-                ],
-                borderWidth: 1,
+                hoverOffset: 4,
             },
         ];
         chart.update();
@@ -129,17 +148,12 @@
                     {#await fetchRegions()}
                         <p>Loading regions...</p>
                     {:then regions}
-                        <Label for="region">Region</Label>
-                        <Input
-                            bind:value={region}
-                            type="select"
-                            name="select"
-                            id="regionSelect"
-                        >
+                        <Label for="region">Regions</Label>
+                        <MultiSelect bind:value={region} id="regionSelect">
                             {#each regions as { name, id }}
                                 <option value={id}>{name}</option>
                             {/each}
-                        </Input>
+                        </MultiSelect>
                     {:catch error}
                         <p>{error.message}</p>
                     {/await}
